@@ -70,9 +70,9 @@ async def gif(ctx, query: str = None):
 async def haiku(ctx):
 
     # Retrieve three lines for the haiku
-    haikuLine1 = generateRandNum(haikuLine1Array)
-    haikuLine2 = generateRandNum(haikuLine2Array)
-    haikuLine3 = generateRandNum(haikuLine3Array)
+    haikuLine1 = generateRandIndex(haikuLine1Array)
+    haikuLine2 = generateRandIndex(haikuLine2Array)
+    haikuLine3 = generateRandIndex(haikuLine3Array)
 
     haiku = haikuLine1 + "\n" + haikuLine2 + "\n" + haikuLine3
     await ctx.send(haiku)
@@ -81,6 +81,7 @@ async def haiku(ctx):
 
 @bot.command()
 async def animeroulette(ctx):
+    # Generate random id number
     seed(None)
     randNum = randint(0, 120000)
 
@@ -88,17 +89,30 @@ async def animeroulette(ctx):
 
     # If the original query failed, query for one of the anime
     if received == False:
-        defaultAnime = generateRandNum(animeArray)
+        defaultAnime = generateRandIndex(animeArray)
         received = queryAnime(defaultAnime)
 
-    anime = received['data']['Media']
+    # Object holding the retrieved data associated to the generated anime id
+    animeObj = received['data']['Media']
 
+    # Check if any of the animeObj attributes are of NoneType
+    titleEnglish = animeObj['title']['english'] if ( animeObj['title']['english'] is not None ) else "N/A"
+    titleRomaji = animeObj['title']['romaji'] if ( animeObj['title']['romaji'] is not None ) else "N/A"
+    averageScore = (str(animeObj['averageScore']) + "%") if ( animeObj['averageScore'] is not None ) else "N/A"
+    episodes = str(animeObj['episodes']) if ( animeObj['episodes'] is not None ) else "N/A"
+    animeDescription = animeObj['description'] if ( animeObj['description'] is not None ) else "N/A"
+    coverImage = animeObj['coverImage']['medium'] if ( animeObj['coverImage']['medium'] is not None ) else "https://i.redd.it/su8274uv8zh11.jpg"
+
+    # Build the embed object for displaying the data
     embed = discord.Embed(
-        title = anime['title']['romaji'], 
-        url = "https://anilist.co/anime/" + str(anime['id']),
-        description = "\"*Forrest Gump mama said, Life is like a box of chocolates (You never know what you're gonna get)*\"\n - Kanye West"
+        title = titleEnglish + " (" + titleRomaji + ")",  
+        url = "https://anilist.co/anime/" + str(animeObj['id']),
+        description = "Average Score: " + averageScore
+                    + "\nEpisode Count: " + episodes 
+                    + "\n\nDescription:\n" + animeDescription,
+        colour = 0x33cc33 
     )
-    embed.set_image(url="https://i.redd.it/su8274uv8zh11.jpg")
+    embed.set_thumbnail(url = coverImage)
     await ctx.send(embed = embed)
 
 
@@ -117,8 +131,15 @@ def queryAnime(randNum):
                 romaji
                 english
             }
+            coverImage {
+                medium
+            }
+            description
+            averageScore
+            episodes
         }
-    }'''
+    }
+    '''
 
     variables = {
         'id': randNum
@@ -141,7 +162,7 @@ def queryAnime(randNum):
 
 
 # Generates a random number as an index in an array
-def generateRandNum(array):
+def generateRandIndex(array):
     size = len(array)
     seed(None)
     randNum = randint(0, size - 1)
