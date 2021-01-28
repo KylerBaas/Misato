@@ -11,7 +11,7 @@ from pprint import pprint
 
 from random import seed, randint
 
-from arrays import haikuLine1Array, haikuLine2Array, haikuLine3Array, animeArray
+from arrays import haikuLine1Array, haikuLine2Array, haikuLine3Array, animeArray, mangaArray, animeQuery, mangaQuery
 
 import requests
 
@@ -78,41 +78,65 @@ async def haiku(ctx):
     await ctx.send(haiku)
 
 
-
 @bot.command()
-async def animeroulette(ctx):
+async def roulette(ctx, mediaType: str):
+    # Make the type parameter uppercase
+    mediaType = mediaType.upper()
+
+    # Break out of command if the mediaType is not valid
+    if mediaType != 'ANIME' and mediaType != 'MANGA':
+        await ctx.send("After ::roulette, type in anime or manga")
+        return
+
     # Generate random id number
     seed(None)
     randNum = randint(0, 120000)
 
-    received = queryAnime(randNum)
+    # Variable values for Anime
+    array = animeArray
+    episodeType = 'episodes'
+    msgEpType = 'Episode Count: '
+    embedColour = 0x109c48
 
-    # If the original query failed, query for one of the anime
+    # Variable values for manga
+    if mediaType == "MANGA":
+        array = mangaArray
+        episodeType = 'chapters'
+        msgEpType = 'Chapter Count: '
+        embedColour = 0x2367b0
+
+    # Query for anime/manga object
+    received = queryAnimeManga(randNum, mediaType)
+
+    # Original query failed, query for one of the anime/manga from default array
     if received == False:
-        defaultAnime = generateRandIndex(animeArray)
-        received = queryAnime(defaultAnime)
+        default = generateRandIndex(array)
+        received = queryAnimeManga(default, mediaType)
 
-    # Object holding the retrieved data associated to the generated anime id
+    # Object holding the retrieved data associated to the generated anime/manga id
     animeObj = received['data']['Media']
 
-    # Check if any of the animeObj attributes are of NoneType
-    titleEnglish = animeObj['title']['english'] if ( animeObj['title']['english'] is not None ) else "N/A"
-    titleRomaji = animeObj['title']['romaji'] if ( animeObj['title']['romaji'] is not None ) else "N/A"
-    averageScore = (str(animeObj['averageScore']) + "%") if ( animeObj['averageScore'] is not None ) else "N/A"
-    episodes = str(animeObj['episodes']) if ( animeObj['episodes'] is not None ) else "N/A"
+    # Check if any of the animeObj attributes are of NoneType, and set the value accordingly
+    titleEnglish = animeObj['title']['english'] if animeObj['title']['english'] is not None else ""
+    titleRomaji = animeObj['title']['romaji'] if animeObj['title']['romaji'] is not None else ""
+    averageScore = str(animeObj['averageScore']) + "%" if animeObj['averageScore'] is not None else "N/A"
+    episodeCount = str(animeObj[episodeType]) if ( animeObj[episodeType] is not None ) else "N/A"
     animeDescription = animeObj['description'] if ( animeObj['description'] is not None ) else "N/A"
     coverImage = animeObj['coverImage']['medium'] if ( animeObj['coverImage']['medium'] is not None ) else "https://i.redd.it/su8274uv8zh11.jpg"
 
     # Build the embed object for displaying the data
     embed = discord.Embed(
-        title = titleEnglish + " (" + titleRomaji + ")",  
+        title = titleEnglish + " (" + titleRomaji + ")" if titleEnglish != "" else titleRomaji,  
         url = "https://anilist.co/anime/" + str(animeObj['id']),
         description = "Average Score: " + averageScore
-                    + "\nEpisode Count: " + episodes 
+                    + "\n" + msgEpType + episodeCount 
                     + "\n\nDescription:\n" + animeDescription,
         colour = 0x33cc33 
     )
+    # Set the cover image as the thumbnail image of the embed
     embed.set_thumbnail(url = coverImage)
+
+    # Send the embed
     await ctx.send(embed = embed)
 
 
@@ -121,52 +145,42 @@ async def animeroulette(ctx):
 
 ###################################################### HELPER FUNCTIONS ######################################################
 
-def queryAnime(randNum):
-   # Query for 
-    query = '''
-    query ($id: Int) {
-        Media (id: $id, type: ANIME) {
-            id
-            title {
-                romaji
-                english
-            }
-            coverImage {
-                medium
-            }
-            description
-            averageScore
-            episodes
-        }
-    }
-    '''
-
+# Queries for anime/manga data from randomly generated id
+def queryAnimeManga(randNum, mediaType):
+    # GraphQL query for anime/manga data based on the generated id 
+    query = animeQuery if mediaType == "ANIME" else mangaQuery
+    #
     variables = {
         'id': randNum
     }
-
+    # Link to anilist
     url = 'https://graphql.anilist.co'
 
     try:
         # Make an HTTP API request
         response = requests.post(url, json = {'query': query, 'variables': variables})
-        
-        # Queried 
+        # Queried id does not exist, return false
         if response.status_code == 404:
             return False
-    # Error in query, return with false
+
+    # Error in query, return false
     except requests.exceptions.RequestException as e:
         return False
 
+    # No errors, return with queried data in JSON format
     return response.json()
 
 
 # Generates a random number as an index in an array
 def generateRandIndex(array):
+    # Size of the array
     size = len(array)
+    # Generate random number within the range of the array size
     seed(None)
     randNum = randint(0, size - 1)
+
     return array[randNum]
+
 
 ##################################################################################################################################################################
 
