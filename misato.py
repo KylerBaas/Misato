@@ -32,6 +32,7 @@ bot = commands.Bot(command_prefix='::')
 
 ###################################################### EVENT LISTENERS ######################################################
 
+
 # Event listener for when bot has connected
 @bot.event
 async def on_ready():
@@ -68,7 +69,6 @@ async def gif(ctx, query: str = None):
 
 @bot.command()
 async def haiku(ctx):
-
     # Retrieve three lines for the haiku
     haikuLine1 = generateRandIndex(haikuLine1Array)
     haikuLine2 = generateRandIndex(haikuLine2Array)
@@ -126,12 +126,12 @@ async def roulette(ctx, mediaType: str):
 
     # Build the embed object for displaying the data
     embed = discord.Embed(
-        title = titleEnglish + " (" + titleRomaji + ")" if titleEnglish != "" else titleRomaji,  
-        url = "https://anilist.co/anime/" + str(animeObj['id']),
+        title = titleEnglish + " (" + titleRomaji + ")" if titleEnglish != "" and  titleEnglish != titleRomaji else titleRomaji,  
+        url = "https://anilist.co/" + mediaType.lower() + "/" + str(animeObj['id']),
         description = "Average Score: " + averageScore
                     + "\n" + msgEpType + episodeCount 
-                    + "\n\nDescription:\n" + animeDescription,
-        colour = 0x33cc33 
+                    + "\n\nDescription:\n" + animeDescription.replace("<br>", ""),
+        colour = embedColour 
     )
     # Set the cover image as the thumbnail image of the embed
     embed.set_thumbnail(url = coverImage)
@@ -140,10 +140,8 @@ async def roulette(ctx, mediaType: str):
     await ctx.send(embed = embed)
 
 
-##################################################################################################################################################################
-
-
 ###################################################### HELPER FUNCTIONS ######################################################
+
 
 # Queries for anime/manga data from randomly generated id
 def queryAnimeManga(randNum, mediaType):
@@ -182,9 +180,9 @@ def generateRandIndex(array):
     return array[randNum]
 
 
-##################################################################################################################################################################
+###################################################### MAIN EXECUTION ######################################################
 
-# Main execution of bot
+
 try:
     bot.run(discordToken)
 except discord.errors.HTTPException and discord.errors.LoginFailure as e:
