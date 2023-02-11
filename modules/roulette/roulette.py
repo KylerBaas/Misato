@@ -7,7 +7,7 @@ from giphy_client.rest import ApiException
 from random import seed, randint
 import re
 
-from modules.roulette.helper_functions import query_random_animemanga, generate_random_index 
+from modules.roulette.helper_functions import query_animemanga, generate_random_index 
 from modules.roulette.variables import default_anime, default_manga
 
 load_dotenv()
@@ -18,12 +18,12 @@ class Roulette(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def gif(self, query: str, author):
+    def gif(self, search_term: str, author):
         try:
-            if query is None:
-                query = "nothing"
+            if search_term is None:
+                search_term = "nothing"
 
-            api_response = giphy_instance.gifs_search_get(giphy_token, query)
+            api_response = giphy_instance.gifs_search_get(giphy_token, search_term)
             data_set = api_response.data
             data_len = len(data_set)
             range = 30
@@ -33,12 +33,12 @@ class Roulette(commands.Cog):
 
             seed(None)
             rand_num = randint(0, range - 1)
-            return author + " Here's a random " + query + " gif\n" f'{data_len[rand_num].images.fixed_height.url}'
+            return author + " Here's a random " + search_term + " gif\n" f'{data_len[rand_num].images.fixed_height.url}'
 
         except ApiException as apie:
             print("Exception when calling DefaultApi")
         
-    def anime_manga(self, media_type):
+    def anime_manga(self, media_type, search_term):
         if media_type == "ANIME":
             array = default_anime
             episode_type = 'episodes'
@@ -53,13 +53,13 @@ class Roulette(commands.Cog):
         seed(None)
         rand_num = randint(0, 17000)
 
-        received = query_random_animemanga(rand_num, media_type)
+        received = query_animemanga(rand_num, media_type)
 
         # Original query failed, query for one of the anime/manga from default array so that 
         # an anime/manga can be dispalyed
         if received == False:
             default = generate_random_index(array)
-            received = query_random_animemanga(default, media_type)
+            received = query_animemanga(default, media_type)
 
         anime_obj = received['data']['Media']
 
@@ -75,7 +75,7 @@ class Roulette(commands.Cog):
         # Build the embed object for displaying the anime/manga data
         embed = discord.Embed(
             title = title_english + " (" + title_romaji + ")" if title_english != "" and  title_english != title_romaji else title_romaji,  
-            url = "https://anilist.co/" + mediaType.lower() + "/" + str(anime_obj['id']),
+            url = "https://anilist.co/" + media_type.lower() + "/" + str(anime_obj['id']),
             description = "Average Score: " + average_score
                     + "\n" + msg_episode_type + episode_count 
                     + "\nGenres: " + ', '.join(genres)
@@ -86,14 +86,14 @@ class Roulette(commands.Cog):
         return embed
 
     @commands.command()
-    async def roulette(self, ctx, media_type: str, query: str = ""):
+    async def roulette(self, ctx, media_type: str, search_term: str = ""):
         content = ""
         media_type = media_type.upper()
         if media_type == "ANIME" or media_type == "MANGA":
-            content = self.anime_manga(media_type)
+            content = self.anime_manga(media_type, search_term)
             await ctx.send(embed = content)
         elif media_type == "GIF":
-            content = self.gif(query, f'{ctx.author.mention}')
+            content = self.gif(search_term, f'{ctx.author.mention}')
             await ctx.send(content)
         else:
             await ctx.send("After ::roulette, type in anime or manga or gif")
